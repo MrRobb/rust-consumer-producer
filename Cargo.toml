@@ -5,12 +5,15 @@ authors = ["Roberto <rob.ariosa@hotmail.com>"]
 edition = "2018"
 
 [dependencies]
-amiquip = { version = "0.3", default-features = true }
-
-[[bin]]
-name = "producer"
-path = "src/producer/main.rs"
+amiquip = "0.3.3"
+serde_json = "1.0.57"
+serde = { version = "1.0", features = ["std", "derive"] }
+clap = "3.0.0-beta.2"
 
 [[bin]]
 name = "consumer"
 path = "src/consumer/main.rs"
+
+[[bin]]
+name = "producer"
+path = "src/producer/main.rs"

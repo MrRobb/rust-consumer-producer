@@ -1,17 +1,67 @@
+#[path = "../data.rs"]
+mod data;
+
 use amiquip::{Connection, Exchange, Publish, Result};
+use clap::App;
+use clap::Arg;
+use data::Message;
+
+fn emit(url: &str, channel: Option<u16>, routing_name: &str, n_messages: usize) -> Result<()> {
+	// Open connection
+	let mut connection = Connection::insecure_open(url)?;
+
+	// Open channel
+	let channel = connection.open_channel(channel)?;
+
+	// Get exchange
+	let exchange = Exchange::direct(&channel);
+
+	// Publish a message
+	for i in 0..n_messages {
+		let message = Message { message_number: i };
+		exchange.publish(Publish::new(
+			serde_json::to_string(&message).unwrap().as_bytes(),
+			routing_name,
+		))?;
+	}
+
+	connection.close()
+}
 
 fn main() -> Result<()> {
-    // Open connection.
-    let mut connection = Connection::insecure_open("amqp://guest:guest@localhost:5672")?;
+	let config = App::new("Producer program")
+		.about("Sends messages to a consumer queue")
+		.arg(
+			Arg::new("url")
+				.about("URL of the service running RabbitMQ")
+				.value_name("RABBITMQ_URL")
+				.default_value("amqp://guest:guest@localhost:5672"),
+		)
+		.arg(
+			Arg::new("channel")
+				.about("Number of the channel selected")
+				.value_name("CHANNEL_ID")
+				.default_value("1"),
+		)
+		.arg(
+			Arg::new("queue")
+				.about("Name of the queue")
+				.value_name("QUEUE_NAME")
+				.default_value("sample"),
+		)
+		.arg(
+			Arg::new("n-messages")
+				.short('n')
+				.about("Number messages to send")
+				.value_name("N_MESSAGES")
+				.default_value("1"),
+		)
+		.get_matches();
 
-    // Open a channel - None says let the library choose the channel ID.
-    let channel = connection.open_channel(None)?;
-
-    // Get a handle to the direct exchange on our channel.
-    let exchange = Exchange::direct(&channel);
-
-    // Publish a message to the "hello" queue.
-    exchange.publish(Publish::new("hello there".as_bytes(), "hello"))?;
-
-    connection.close()
+	emit(
+		config.value_of("url").unwrap(),
+		Some(config.value_of_t("channel").unwrap()),
+		config.value_of("queue").unwrap(),
+		config.value_of_t("n-messages").unwrap(),
+	)
 }
