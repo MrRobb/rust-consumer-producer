@@ -1,0 +1,16 @@
+[package]
+name = "ega-backend"
+version = "0.1.0"
+authors = ["Roberto <rob.ariosa@hotmail.com>"]
+edition = "2018"
+
+[dependencies]
+amiquip = { version = "0.3", default-features = true }
+
+[[bin]]
+name = "producer"
+path = "src/producer/main.rs"
+
+[[bin]]
+name = "consumer"
+path = "src/consumer/main.rs"
