@@ -7,7 +7,7 @@ Example of a consumer <-> producer system in Rust.
 ### Requirements
 
 - Rust
-- RabbitMQ
+- Docker
 
 ### Usage
 
