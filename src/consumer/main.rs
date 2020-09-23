@@ -14,13 +14,15 @@ use clap::App;
 use clap::Arg;
 use data::Message;
 use serde_json;
+use sqlx::PgPool;
 
-fn listen<'a>(
+async fn listen<'a>(
 	url: &str,
 	channel: Option<u16>,
 	queue_name: &str,
 	queue_options: QueueDeclareOptions,
 	consumer_options: ConsumerOptions,
+	db_pool: PgPool,
 ) -> Result<()> {
 	// Open connection
 	// TODO: Add TLS support for a secure connection
@@ -38,11 +40,10 @@ fn listen<'a>(
 	for (_, message) in consumer.receiver().iter().enumerate() {
 		match message {
 			ConsumerMessage::Delivery(delivery) => match serde_json::from_slice::<Message>(delivery.body.as_slice()) {
-				Ok(json) => match process::consume_json(json) {
-					Ok(_) => {
+				Ok(json) => {
+					if process::consume_json(&db_pool, json).await.is_ok() {
 						consumer.ack(delivery)?;
-					},
-					Err(_) => todo!(),
+					}
 				},
 				Err(_) => todo!(),
 			},
@@ -54,7 +55,12 @@ fn listen<'a>(
 	connection.close()
 }
 
-fn main() -> Result<()> {
+async fn connect(url: &str) -> PgPool {
+	PgPool::connect(url).await.unwrap()
+}
+
+#[async_std::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let config = App::new("Consumer program")
 		.about("Processes messages from a consumer queue")
 		.arg(
@@ -78,6 +84,13 @@ fn main() -> Result<()> {
 				.value_name("QUEUE_NAME")
 				.default_value("sample"),
 		)
+		.arg(
+			Arg::new("database-url")
+				.long("db")
+				.about("URL of the database service")
+				.value_name("DATABASE_URL")
+				.default_value("postgres://guest:guest@localhost:5432/guestdb"),
+		)
 		.get_matches();
 
 	listen(
@@ -86,5 +99,9 @@ fn main() -> Result<()> {
 		config.value_of("queue").unwrap(),
 		QueueDeclareOptions::default(),
 		ConsumerOptions::default(),
+		connect(config.value_of("database-url").unwrap()).await,
 	)
+	.await?;
+
+	Ok(())
 }
